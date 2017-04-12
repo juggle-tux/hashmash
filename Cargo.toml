@@ -1,0 +1,8 @@
+[package]
+name = "hashmash"
+version = "0.1.0"
+authors = ["Sven Steinbauer <sven@themill.com>"]
+
+[dependencies]
+rust-crypto = "^0.2"
+clap = "~2.23.2"
