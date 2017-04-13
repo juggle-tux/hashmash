@@ -6,6 +6,5 @@ authors = ["Sven Steinbauer <sven@themill.com>"]
 [dependencies]
 rust-crypto = "^0.2"
 clap = "~2.23.2"
-num_cpus = "~1.3.0"
-scoped_threadpool = "~0.1.7"
+rayon = "~0.7.0"
 permutohedron = "~0.2.2"
