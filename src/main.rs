@@ -4,13 +4,17 @@ use std::fs::File;
 use std::error::Error;
 
 extern crate crypto;
-use crypto::{sha1, sha2, sha3, md5};
-use crypto::buffer::{ReadBuffer, WriteBuffer, BufferResult};
+use crypto::{sha1, sha2, md5};
+//use crypto::buffer::{ReadBuffer, WriteBuffer, BufferResult};
+use crypto::digest::Digest;
 
 extern crate num_cpus;
 
 extern crate scoped_threadpool;
 use scoped_threadpool::Pool;
+
+extern crate permutohedron;
+use permutohedron::Heap;
 
 #[macro_use]
 extern crate clap;
@@ -40,6 +44,17 @@ arg_enum!{
         underscore,
         pipe,
         semicolon
+    }
+}
+
+fn generate_hash(hash: &Hashes, data: &str) -> String {
+    match hash {
+        &Hashes::md5 => { let mut hasher = md5::Md5::new(); hasher.input_str(data); hasher.result_str() },
+        &Hashes::sha1 => { let mut hasher = sha1::Sha1::new(); hasher.input_str(data); hasher.result_str() },
+        &Hashes::sha224 => { let mut hasher = sha2::Sha224::new(); hasher.input_str(data); hasher.result_str() },
+        &Hashes::sha256 => { let mut hasher = sha2::Sha256::new(); hasher.input_str(data); hasher.result_str() },
+        &Hashes::sha384 => { let mut hasher = sha2::Sha384::new(); hasher.input_str(data); hasher.result_str() },
+        &Hashes::sha512 => { let mut hasher = sha2::Sha512::new(); hasher.input_str(data); hasher.result_str() },
     }
 }
 
@@ -113,7 +128,27 @@ fn main() {
     });*/
     println! ("Hash alg is {} {} {} {}", hash_alg, delimeter, filename, match_hash);
 
-    let file_data = read_file(&filename[..]).unwrap();
-    println!("{:?}", file_data);
+    let mut file_data = read_file(&filename[..]).unwrap();
 
+    let mut heap = Heap::new(&mut file_data);
+    while let Some(elt) = heap.next_permutation() {
+        let res = generate_hash(&hash_alg, &elt.join("-"));
+        println!("{:?} {}", elt, res);
+        if res == match_hash {
+            println! ("Matching {}", &elt.join("-"));
+            break;
+        }
+
+    }
+
+    /*'outer: for e in &file_data {
+        'inner: for f in &file_data {
+            let res = generate_hash(&hash_alg, &format!("{}{}", e, f)[..]);
+            println!("{}", res);
+            if res == match_hash {
+                println!("{} {}", e, f);
+                break 'outer;
+            }
+        }
+    }*/
 }
