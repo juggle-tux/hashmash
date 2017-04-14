@@ -100,16 +100,36 @@ fn main() {
                                 .help("File containing values to hash")
                                 .takes_value(true)
                                 .required(true))
+                          .arg(Arg::with_name("starttime")
+                                .short("st")
+                                .long("starttime")
+                                .value_name("start_time")
+                                .help("Define a start time")
+                                .takes_value(true)
+                                .required(false))
+                          .arg(Arg::with_name("endtime")
+                                .short("e")
+                                .long("endtime")
+                                .value_name("end_time")
+                                .help("Define an end time")
+                                .takes_value(true)
+                                .requires("starttime"))
                                .get_matches();
 
-    let hash_alg = value_t!(matches.value_of("alg"), Hashes).unwrap();
-    let delimeter = value_t_or_exit!(matches.value_of("delim"), String);
-    let filename = value_t_or_exit!(matches.value_of("file"), String);
-    let match_hash = value_t_or_exit!(matches.value_of("match"), String);
+    let hash_alg = value_t!(matches, "alg", Hashes).unwrap();
+    let delimeter = value_t_or_exit!(matches, "delim", String);
+    let filename = value_t_or_exit!(matches, "file", String);
+    let match_hash = value_t_or_exit!(matches, "match", String);
 
     let delim = &delimeter[..];
-
     let mut file_data = read_file(&filename[..]).unwrap();
+
+    if let Some(s) = matches.value_of("starttime") {
+        let st = time::strptime(&s, "%Y-%m-%d %H:%M:%S").unwrap().to_timespec();
+        file_data.push(st.sec.to_string());
+    }
+
+    println!("{:?}", file_data);
 
     let heap: Vec<Vec <String>> = Heap::new(&mut file_data).collect();
 
