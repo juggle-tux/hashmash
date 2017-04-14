@@ -126,17 +126,27 @@ fn main() {
 
     if let Some(s) = matches.value_of("starttime") {
         let st = time::strptime(&s, "%Y-%m-%d %H:%M:%S").unwrap().to_timespec();
-        file_data.push(st.sec.to_string());
-    }
+        let e = matches.value_of("endtime").unwrap();
+        let et = time::strptime(&e, "%Y-%m-%d %H:%M:%S").unwrap().to_timespec();
 
-    println!("{:?}", file_data);
+        for x in st.sec..et.sec {
+            let mut segments = file_data.clone();
+            segments.push(x.to_string());
+            let heap: Vec<Vec <String>> = Heap::new(&mut segments).collect();
 
-    let heap: Vec<Vec <String>> = Heap::new(&mut file_data).collect();
-
-    let r = heap.par_iter().find_first(|&x| { generate_hash(&hash_alg, &(x.join(delim))) == match_hash });
-    if r.is_some() {
-        println!("[+] Found a matching hash for: {}", r.unwrap().join(delim));
+            let r = heap.par_iter().find_first(|&x| { generate_hash(&hash_alg, &(x.join(delim))) == match_hash });
+            if r.is_some() {
+               println!("[+] Found a matching hash for: {}", r.unwrap().join(delim));
+            }
+        }
     } else {
-        println!("[+] Search exhausted. Nothing found");
+        let heap: Vec<Vec <String>> = Heap::new(&mut file_data).collect();
+
+        let r = heap.par_iter().find_first(|&x| { generate_hash(&hash_alg, &(x.join(delim))) == match_hash });
+        if r.is_some() {
+            println!("[+] Found a matching hash for: {}", r.unwrap().join(delim));
+        } else {
+            println!("[+] Search exhausted. Nothing found");
+        }
     }
 }
