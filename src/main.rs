@@ -15,6 +15,8 @@ use rayon::prelude::*;
 extern crate permutohedron;
 use permutohedron::Heap;
 
+extern crate time;
+
 #[macro_use]
 extern crate clap;
 use clap::{Arg, App};
