@@ -3,12 +3,14 @@
 use std::io::{self, BufRead, BufReader, Write};
 use std::borrow::Borrow;
 use std::fs::File;
+use std::fmt::Write as FmtWrite;
 use std::error::Error;
 
-extern crate crypto;
-use crypto::{sha1, sha2, md5};
-//use crypto::buffer::{ReadBuffer, WriteBuffer, BufferResult};
-use crypto::digest::Digest;
+extern crate sha_1 as sha1;
+extern crate md_5 as md5;
+extern crate sha2;
+extern crate digest;
+use digest::Digest;
 
 extern crate rayon;
 use rayon::prelude::*;
@@ -49,16 +51,26 @@ fn slice_join<T: Clone, V: Borrow<[T]>>(slice: &[V], sep: &[T]) -> Vec<T> {
     result
 }
 
+fn hash_data<D: Digest>(mut hash: D, data: &[u8]) -> String {
+    hash.input(data);
+    let output_bytes = hash.result();
+    let mut output_str = String::with_capacity(output_bytes.len() * 2);
+    for byte in output_bytes {
+        write!(output_str, "{:02x}", byte).unwrap();
+    }
+    output_str
+}
+
 // Generate a hash from the input based on the requested hash type
 // Less duplicated code needed here
 fn generate_hash(hash: &Hashes, data: &[u8]) -> String {
     match hash {
-        &Hashes::md5 => { let mut hasher = md5::Md5::new(); hasher.input(data); hasher.result_str() },
-        &Hashes::sha1 => { let mut hasher = sha1::Sha1::new(); hasher.input(data); hasher.result_str() },
-        &Hashes::sha224 => { let mut hasher = sha2::Sha224::new(); hasher.input(data); hasher.result_str() },
-        &Hashes::sha256 => { let mut hasher = sha2::Sha256::new(); hasher.input(data); hasher.result_str() },
-        &Hashes::sha384 => { let mut hasher = sha2::Sha384::new(); hasher.input(data); hasher.result_str() },
-        &Hashes::sha512 => { let mut hasher = sha2::Sha512::new(); hasher.input(data); hasher.result_str() },
+        &Hashes::md5 => { let hasher = md5::Md5::default(); hash_data(hasher, data) },
+        &Hashes::sha1 => { let hasher = sha1::Sha1::default(); hash_data(hasher, data) },
+        &Hashes::sha224 => { let hasher = sha2::Sha224::default(); hash_data(hasher, data) },
+        &Hashes::sha256 => { let hasher = sha2::Sha256::default(); hash_data(hasher, data) },
+        &Hashes::sha384 => { let hasher = sha2::Sha384::default(); hash_data(hasher, data) },
+        &Hashes::sha512 => { let hasher = sha2::Sha512::default(); hash_data(hasher, data) },
     }
 }
 
