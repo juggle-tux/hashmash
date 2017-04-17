@@ -19,13 +19,14 @@ Dependencies
 * clap
 * rayon
 * permutahedron
+* time
 
 Does not need nightly Rust
 
 TODO
 ----
 
-* Add timestamp support
+* Add millisecondtimestamp support
 * Option to test for all delimeters
 * Probably clean up the Rust code a bit
 * Add tests and benchmarks
