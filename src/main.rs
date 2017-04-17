@@ -177,13 +177,15 @@ fn main() {
     let delim = config.delimeter.as_bytes();
     let match_hash = config.match_hash;
     let hash_alg = config.hash_alg;
-    let mut file_data = ok_or_exit!(read_file(&config.filename[..]), "failed to read file");
+    let file_data = ok_or_exit!(read_file(&config.filename[..]), "failed to read file");
+    let mut file_data: Vec<&[u8]> = file_data.iter().map(|line| &line[..]).collect();
 
     if let Some((st, et)) = config.start_end_time {
         for x in st.sec..et.sec {
+            let new_segment = x.to_string().into_bytes();
             let mut segments = file_data.clone();
-            segments.push(x.to_string().into_bytes());
-            let heap: Vec<Vec<Vec<u8>>> = Heap::new(&mut segments).collect();
+            segments.push(&new_segment);
+            let heap: Vec<Vec<&[u8]>> = Heap::new(&mut segments).collect();
 
             let r = heap.par_iter().map(|items| slice_join(items, delim)).find_first(|x| generate_hash(&hash_alg, &x) == match_hash);
             if let Some(value) = r {
@@ -191,7 +193,7 @@ fn main() {
             }
         }
     } else {
-        let heap: Vec<Vec<Vec<u8>>> = Heap::new(&mut file_data).collect();
+        let heap: Vec<Vec<&[u8]>> = Heap::new(&mut file_data).collect();
 
         let r = heap.par_iter().map(|items| slice_join(items, delim)).find_first(|x| generate_hash(&hash_alg, &x) == match_hash);
         match r {
