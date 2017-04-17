@@ -199,7 +199,7 @@ fn main() {
             segments.push(&new_segment);
             let heap: Vec<Vec<&[u8]>> = Heap::new(&mut segments).collect();
 
-            let r = heap.par_iter().map(|items| slice_join(items, delim)).find_first(|x| generate_hash(&hash_alg, &x) == match_hash);
+            let r = heap.par_iter().map(|items| slice_join(items, delim)).find_any(|x| generate_hash(&hash_alg, &x) == match_hash);
             if let Some(value) = r {
                 println!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value));
             }
@@ -207,7 +207,7 @@ fn main() {
     } else {
         let heap: Vec<Vec<&[u8]>> = Heap::new(&mut file_data).collect();
 
-        let r = heap.par_iter().map(|items| slice_join(items, delim)).find_first(|x| generate_hash(&hash_alg, &x) == match_hash);
+        let r = heap.par_iter().map(|items| slice_join(items, delim)).find_any(|x| generate_hash(&hash_alg, &x) == match_hash);
         match r {
             Some(value) => 
                 println!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value)),
