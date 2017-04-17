@@ -1,6 +1,7 @@
 #![allow(non_camel_case_types)]
 
-use std::io::{self, Read, Write};
+use std::io::{self, BufRead, BufReader, Write};
+use std::borrow::Borrow;
 use std::fs::File;
 use std::error::Error;
 
@@ -32,6 +33,54 @@ arg_enum!{
         sha384,
         sha512
     }
+}
+
+fn slice_join<T: Clone, V: Borrow<[T]>>(slice: &[V], sep: &[T]) -> Vec<T> {
+    if slice.len() == 0 {
+        return Vec::new();
+    }
+    let total_len = slice.iter().map(|v| v.borrow().len()).sum::<usize>() + sep.len() * slice.len().saturating_sub(1);
+    let mut result = Vec::with_capacity(total_len);
+    result.extend_from_slice(slice[0].borrow());
+    for v in &slice[1..] {
+        result.extend_from_slice(sep);
+        result.extend_from_slice(v.borrow());
+    }
+    result
+}
+
+// Generate a hash from the input based on the requested hash type
+// Less duplicated code needed here
+fn generate_hash(hash: &Hashes, data: &[u8]) -> String {
+    match hash {
+        &Hashes::md5 => { let mut hasher = md5::Md5::new(); hasher.input(data); hasher.result_str() },
+        &Hashes::sha1 => { let mut hasher = sha1::Sha1::new(); hasher.input(data); hasher.result_str() },
+        &Hashes::sha224 => { let mut hasher = sha2::Sha224::new(); hasher.input(data); hasher.result_str() },
+        &Hashes::sha256 => { let mut hasher = sha2::Sha256::new(); hasher.input(data); hasher.result_str() },
+        &Hashes::sha384 => { let mut hasher = sha2::Sha384::new(); hasher.input(data); hasher.result_str() },
+        &Hashes::sha512 => { let mut hasher = sha2::Sha512::new(); hasher.input(data); hasher.result_str() },
+    }
+}
+
+// Read lines from file into a Vec of lines
+fn read_file(filename: &str) -> Result<Vec<Vec<u8>>, Box<Error>> {
+    let mut f = BufReader::new(File::open(filename)?);
+
+    let mut result = Vec::new();
+    let mut buffer = Vec::new();
+    loop {
+        if f.read_until(b'\n', &mut buffer)? == 0 {
+            // EOF
+            break;
+        }
+        // Read until includes the newline if there is one. Remove it.
+        if *buffer.last().unwrap() == b'\n' { // unwrap safe because read_until didn't return 0
+            buffer.pop();
+        }
+        result.push(buffer.clone());
+        buffer.clear();
+    }
+    Ok(result)
 }
 
 struct Config {
@@ -111,32 +160,6 @@ fn config_from_cli() -> Result<Config, Box<Error>> {
     })
 }
 
-// Generate a hash from the input based on the requested hash type
-// Less duplicated code needed here
-fn generate_hash(hash: &Hashes, data: &str) -> String {
-    match hash {
-        &Hashes::md5 => { let mut hasher = md5::Md5::new(); hasher.input_str(data); hasher.result_str() },
-        &Hashes::sha1 => { let mut hasher = sha1::Sha1::new(); hasher.input_str(data); hasher.result_str() },
-        &Hashes::sha224 => { let mut hasher = sha2::Sha224::new(); hasher.input_str(data); hasher.result_str() },
-        &Hashes::sha256 => { let mut hasher = sha2::Sha256::new(); hasher.input_str(data); hasher.result_str() },
-        &Hashes::sha384 => { let mut hasher = sha2::Sha384::new(); hasher.input_str(data); hasher.result_str() },
-        &Hashes::sha512 => { let mut hasher = sha2::Sha512::new(); hasher.input_str(data); hasher.result_str() },
-    }
-}
-
-// Read lines from file into a Vec<String>
-fn read_file(filename: &str) -> Result<Vec<String>, Box<Error>> {
-    let mut buffer = String::new();
-    let mut f = File::open(filename)?;
-    f.read_to_string(&mut buffer)?;
-
-    let x = buffer
-            .lines()
-            .map(ToOwned::to_owned)
-            .collect();
-    return Ok(x);
-}
-
 fn main() {
     macro_rules! ok_or_exit {
         ($res:expr, $msg:expr) => {
@@ -151,29 +174,31 @@ fn main() {
     };
 
     let config = ok_or_exit!(config_from_cli(), "failed to parse command line");
-
-    let delim = &config.delimeter[..];
+    let delim = config.delimeter.as_bytes();
+    let match_hash = config.match_hash;
+    let hash_alg = config.hash_alg;
     let mut file_data = ok_or_exit!(read_file(&config.filename[..]), "failed to read file");
 
     if let Some((st, et)) = config.start_end_time {
         for x in st.sec..et.sec {
             let mut segments = file_data.clone();
-            segments.push(x.to_string());
-            let heap: Vec<Vec <String>> = Heap::new(&mut segments).collect();
+            segments.push(x.to_string().into_bytes());
+            let heap: Vec<Vec<Vec<u8>>> = Heap::new(&mut segments).collect();
 
-            let r = heap.par_iter().find_any(|&x| { generate_hash(&config.hash_alg, &(x.join(delim))) == config.match_hash });
-            if r.is_some() {
-               println!("[+] Found a matching hash for: {}", r.unwrap().join(delim));
+            let r = heap.par_iter().map(|items| slice_join(items, delim)).find_first(|x| generate_hash(&hash_alg, &x) == match_hash);
+            if let Some(value) = r {
+                println!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value));
             }
         }
     } else {
-        let heap: Vec<Vec <String>> = Heap::new(&mut file_data).collect();
+        let heap: Vec<Vec<Vec<u8>>> = Heap::new(&mut file_data).collect();
 
-        let r = heap.par_iter().find_any(|&x| { generate_hash(&config.hash_alg, &(x.join(delim))) == config.match_hash });
-        if r.is_some() {
-            println!("[+] Found a matching hash for: {}", r.unwrap().join(delim));
-        } else {
-            println!("[+] Search exhausted. Nothing found");
+        let r = heap.par_iter().map(|items| slice_join(items, delim)).find_first(|x| generate_hash(&hash_alg, &x) == match_hash);
+        match r {
+            Some(value) => 
+                println!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value)),
+            None =>
+                println!("[+] Search exhausted. Nothing found"),
         }
     }
 }
