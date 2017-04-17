@@ -3,7 +3,6 @@
 use std::io::{self, BufRead, BufReader, Write};
 use std::borrow::Borrow;
 use std::fs::File;
-use std::fmt::Write as FmtWrite;
 use std::error::Error;
 
 extern crate sha_1 as sha1;
@@ -11,6 +10,9 @@ extern crate md_5 as md5;
 extern crate sha2;
 extern crate digest;
 use digest::Digest;
+
+extern crate generic_array;
+use generic_array::typenum::Unsigned;
 
 extern crate rayon;
 use rayon::prelude::*;
@@ -20,6 +22,9 @@ use permutohedron::Heap;
 
 extern crate time;
 use time::Timespec;
+
+extern crate rustc_serialize;
+use rustc_serialize::hex::FromHex;
 
 #[macro_use]
 extern crate clap;
@@ -37,6 +42,19 @@ arg_enum!{
     }
 }
 
+impl Hashes {
+    fn hash_len(self) -> usize {
+        match self {
+            Hashes::md5 => <md5::Md5 as Digest>::OutputSize::to_usize(),
+            Hashes::sha1 => <sha1::Sha1 as Digest>::OutputSize::to_usize(),
+            Hashes::sha224 => <sha2::Sha224 as Digest>::OutputSize::to_usize(),
+            Hashes::sha256 => <sha2::Sha256 as Digest>::OutputSize::to_usize(),
+            Hashes::sha384 => <sha2::Sha384 as Digest>::OutputSize::to_usize(),
+            Hashes::sha512 => <sha2::Sha512 as Digest>::OutputSize::to_usize(),
+        }
+    }
+}
+
 fn slice_join<T: Clone, V: Borrow<[T]>>(slice: &[V], sep: &[T]) -> Vec<T> {
     if slice.len() == 0 {
         return Vec::new();
@@ -51,26 +69,74 @@ fn slice_join<T: Clone, V: Borrow<[T]>>(slice: &[V], sep: &[T]) -> Vec<T> {
     result
 }
 
-fn hash_data<D: Digest>(mut hash: D, data: &[u8]) -> String {
-    hash.input(data);
-    let output_bytes = hash.result();
-    let mut output_str = String::with_capacity(output_bytes.len() * 2);
-    for byte in output_bytes {
-        write!(output_str, "{:02x}", byte).unwrap();
-    }
-    output_str
-}
-
-// Generate a hash from the input based on the requested hash type
-// Less duplicated code needed here
-fn generate_hash(hash: &Hashes, data: &[u8]) -> String {
+fn check_hash(hash: Hashes, lines: &[&[u8]], delim: &[u8], target_hash: &[u8]) -> bool {
     match hash {
-        &Hashes::md5 => { let hasher = md5::Md5::default(); hash_data(hasher, data) },
-        &Hashes::sha1 => { let hasher = sha1::Sha1::default(); hash_data(hasher, data) },
-        &Hashes::sha224 => { let hasher = sha2::Sha224::default(); hash_data(hasher, data) },
-        &Hashes::sha256 => { let hasher = sha2::Sha256::default(); hash_data(hasher, data) },
-        &Hashes::sha384 => { let hasher = sha2::Sha384::default(); hash_data(hasher, data) },
-        &Hashes::sha512 => { let hasher = sha2::Sha512::default(); hash_data(hasher, data) },
+        Hashes::md5 => {
+            let mut hasher = md5::Md5::default();
+            if ! lines.is_empty() {
+                hasher.input(lines[0]);
+                for &line in &lines[1..] {
+                    hasher.input(delim);
+                    hasher.input(line);
+                }
+            }
+            &hasher.result()[..] == target_hash
+        },
+        Hashes::sha1 => {
+            let mut hasher = sha1::Sha1::default();
+            if ! lines.is_empty() {
+                hasher.input(lines[0]);
+                for &line in &lines[1..] {
+                    hasher.input(delim);
+                    hasher.input(line);
+                }
+            }
+            &hasher.result()[..] == target_hash
+        },
+        Hashes::sha224 => {
+            let mut hasher = sha2::Sha224::default();
+            if ! lines.is_empty() {
+                hasher.input(lines[0]);
+                for &line in &lines[1..] {
+                    hasher.input(delim);
+                    hasher.input(line);
+                }
+            }
+            &hasher.result()[..] == target_hash
+        },
+        Hashes::sha256 => {
+            let mut hasher = sha2::Sha256::default();
+            if ! lines.is_empty() {
+                hasher.input(lines[0]);
+                for &line in &lines[1..] {
+                    hasher.input(delim);
+                    hasher.input(line);
+                }
+            }
+            &hasher.result()[..] == target_hash
+        },
+        Hashes::sha384 => {
+            let mut hasher = sha2::Sha384::default();
+            if ! lines.is_empty() {
+                hasher.input(lines[0]);
+                for &line in &lines[1..] {
+                    hasher.input(delim);
+                    hasher.input(line);
+                }
+            }
+            &hasher.result()[..] == target_hash
+        },
+        Hashes::sha512 => {
+            let mut hasher = sha2::Sha512::default();
+            if ! lines.is_empty() {
+                hasher.input(lines[0]);
+                for &line in &lines[1..] {
+                    hasher.input(delim);
+                    hasher.input(line);
+                }
+            }
+            &hasher.result()[..] == target_hash
+        },
     }
 }
 
@@ -187,10 +253,24 @@ fn main() {
 
     let config = ok_or_exit!(config_from_cli(), "failed to parse command line");
     let delim = config.delimeter.as_bytes();
-    let match_hash = config.match_hash;
     let hash_alg = config.hash_alg;
     let file_data = ok_or_exit!(read_file(&config.filename[..]), "failed to read file");
     let mut file_data: Vec<&[u8]> = file_data.iter().map(|line| &line[..]).collect();
+
+    let match_hash = config.match_hash;
+    if match_hash.len() != hash_alg.hash_len() * 2 {
+        println!("Hash is of the wrong size. Expected {} characters, got {}", hash_alg.hash_len() * 2, match_hash.len());
+        return;
+    }
+    let match_hash = match match_hash.from_hex() {
+        Ok(hash) => {
+            hash
+        },
+        Err(e) => {
+            println!("Invalid Hash: {}", e);
+            return;
+        },
+    };
 
     if let Some((st, et)) = config.start_end_time {
         for x in st.sec..et.sec {
@@ -199,20 +279,26 @@ fn main() {
             segments.push(&new_segment);
             let heap: Vec<Vec<&[u8]>> = Heap::new(&mut segments).collect();
 
-            let r = heap.par_iter().map(|items| slice_join(items, delim)).find_any(|x| generate_hash(&hash_alg, &x) == match_hash);
+            let r = heap
+                .into_par_iter()
+                .find_any(|x| check_hash(hash_alg, &x, delim, &match_hash));
             if let Some(value) = r {
-                println!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value));
+                let value = slice_join(&value, delim);
+                print!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value));
             }
         }
     } else {
         let heap: Vec<Vec<&[u8]>> = Heap::new(&mut file_data).collect();
 
-        let r = heap.par_iter().map(|items| slice_join(items, delim)).find_any(|x| generate_hash(&hash_alg, &x) == match_hash);
+        let r = heap
+            .into_par_iter()
+            .find_any(|x| check_hash(hash_alg, &x, delim, &match_hash));
         match r {
-            Some(value) => 
-                println!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value)),
-            None =>
-                println!("[+] Search exhausted. Nothing found"),
+            Some(value) => {
+                let value = slice_join(&value, delim);
+                println!("[+] Found a matching hash for: {}", String::from_utf8_lossy(&value))
+            },
+            None => println!("[+] Search exhausted. Nothing found"),
         }
     }
 }

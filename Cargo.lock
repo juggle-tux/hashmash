@@ -4,9 +4,11 @@ version = "0.1.1"
 dependencies = [
  "clap 2.23.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "digest 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "generic-array 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "md-5 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "permutohedron 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha-1 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -182,6 +184,11 @@ version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "rustc-serialize"
+version = "0.3.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "sha-1"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -284,6 +291,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rayon 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8c83adcb08e5b922e804fe1918142b422602ef11f2fd670b0b52218cb5984a20"
 "checksum rayon-core 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "767d91bacddf07d442fe39257bf04fd95897d1c47c545d009f6beb03efd038f8"
 "checksum redox_syscall 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)" = "29dbdfd4b9df8ab31dec47c6087b7b13cbf4a776f335e4de8efba8288dda075b"
+"checksum rustc-serialize 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)" = "684ce48436d6465300c9ea783b6b14c4361d6b8dcbb1375b486a69cc19e2dfb0"
 "checksum sha-1 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3cfcbcf0d4bb0351ddd5c703c34f58c04b74f29e0d131106bf1869b90a144770"
 "checksum sha2 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d2dc1ddceb09bccce894f9deaaec8ad0278ede6be5537c49a3549cf63937c39a"
 "checksum strsim 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b4d15c810519a91cf877e7e36e63fe068815c678181439f2f29e2562147c3694"
