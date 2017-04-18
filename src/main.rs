@@ -127,14 +127,8 @@ fn generate_hash(hash: &Hashes, data: &str) -> String {
 // Read lines from file into a Vec<String>
 fn read_file(filename: &str) -> Result<Vec<String>, Box<Error>> {
     let mut buffer = String::new();
-    let mut f = match File::open(filename) {
-        Ok(f) => f,
-        Err(why) => panic!("Unable to open file {}: {}", filename, why.description())
-    };
-    match f.read_to_string(&mut buffer) {
-        Ok(x) => x,
-        Err(why) => panic!("Unable to read from file: {}", why.description())
-    };
+    let mut f = File::open(filename)?;
+    f.read_to_string(&mut buffer)?;
 
     let x = buffer
             .lines()
