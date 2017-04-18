@@ -4,8 +4,13 @@ version = "0.1.1"
 authors = ["Sven Steinbauer <sven@themill.com>"]
 
 [dependencies]
-rust-crypto = "^0.2"
+generic-array = "^0.7"
+digest = "0.5"
+sha-1 = "0.3"
+sha2 = "0.5"
+md-5 = "0.4"
 clap = "~2.23.2"
 rayon = "~0.7.0"
 permutohedron = "~0.2.2"
 time = "0.1"
+rustc-serialize = "0.3"
