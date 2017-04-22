@@ -262,15 +262,7 @@ fn main() {
         println!("Hash is of the wrong size. Expected {} characters, got {}", hash_alg.hash_len() * 2, match_hash.len());
         return;
     }
-    let match_hash = match match_hash.from_hex() {
-        Ok(hash) => {
-            hash
-        },
-        Err(e) => {
-            println!("Invalid Hash: {}", e);
-            return;
-        },
-    };
+    let match_hash = ok_or_exit!(match_hash.from_hex(), "Invalid Hash");
 
     if let Some((st, et)) = config.start_end_time {
         for x in st.sec..et.sec {
